@@ -1,201 +1,156 @@
-import socket
+
 import time
 import re
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-class koradUdpComm(object):
-
-    def __init__(self, localAddress, deviceAddress, port):
-        self.clientAddress = (localAddress, port)
-        self.deviceAddress = (deviceAddress, port)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    def connect(self):
-        self.sock.bind(self.clientAddress)
-        self.sock.settimeout(1.0)
-
-    def close(self):
-        self.sock.close()
-
-    def udpSendRecv(self, message):
-
-        # build the message
-        messageb = bytearray()
-        messageb.extend(map(ord, message))
-        messageb.append(0x0a)
-
-        startTime = time.time()
-        while 1:
-            sent = self.sock.sendto(messageb , self.deviceAddress)
-            self.sock.settimeout(1.0) 
-            data, server = self.sock.recvfrom(1024)
-            if len(data) > 0:
-                return data.decode('utf-8')
-            
-            if time.time() - startTime > 3:
-                print ("UDP timeout")
-                return " "
-
-    def udpSend(self, message):
-        # build the message
-        messageb = bytearray()
-        messageb.extend(map(ord, message))
-        messageb.append(0x0a)
-
-        sent = self.sock.sendto(messageb , self.deviceAddress)
+from .communication import KoradUdpComm
 
 class kel103(object):
 
-    def __init__(self, localAddress, deviceAddress, port):
-        self.device = koradUdpComm(localAddress, deviceAddress, port)
+    def __init__(self, local_address, device_address, port):
+        self.device = KoradUdpComm(local_address, device_address, port)
         self.device.connect()
 
-    def deviceInfo(self):
-        return self.device.udpSendRecv('*IDN?')
+    def __init__(self, device):
+        self.device = device
+        self.device.connect()
+
+    def device_info(self):
+        return self.device.send_receive('*IDN?')
     
-    def checkDevice(self):
-        if 'KEL103' in self.deviceInfo():
+    def check_device(self):
+        if 'KEL103' in self.device_info():
             return True
         else:
             return False
 
-    def measureSetCurrent(self):
-        s = self.device.udpSendRecv(':CURR?')
-        return float(s.strip('A\n'))
-
-    def setCurrent(self, current):
-        s = self.device.udpSend(':CURR ' + str(current) + 'A')
-        if self.measureSetCurrent() != current:
-            raise ValueError('Current set incorectly on the device')
-
-    def getGenericBoolean(self, settingName):
-        s = self.device.udpSendRecv(':{}?'.format(settingName))
+    def get_generic_boolean(self, setting_name):
+        s = self.device.send_receive(':{}?'.format(setting_name))
         if 'OFF' in s:
             return False
         if 'ON' in s:
             return True
 
-    def setGenericBoolean(self, settingName, state):
-        self.device.udpSend(':{0} {1:d}'.format(settingName, state))
-        if self.getGenericBoolean(settingName) != state:
-            raise ValueError('Caution: {} not set'.format(settingName))
+    def set_generic_boolean(self, setting_name, state):
+        self.device.send(':{0} {1:d}'.format(setting_name, state))
+        if self.get_generic_boolean(setting_name) != state:
+            raise ValueError('Caution: {} not set'.format(setting_name))
 
-    def getOutput(self):
-        return self.getGenericBoolean('INP')
+    def get_output(self):
+        return self.get_generic_boolean('INP')
 
-    def setOutput(self, state):
-        self.setGenericBoolean('INP', state)
+    def set_output(self, state):
+        self.set_generic_boolean('INP', state)
 
-    def getComp(self):
-        return self.getGenericBoolean('SYST:COMP')
+    def get_comp(self):
+        return self.get_generic_boolean('SYST:COMP')
 
-    def setComp(self, state):
-        self.setGenericBoolean('SYST:COMP', state)
+    def set_comp(self, state):
+        self.set_generic_boolean('SYST:COMP', state)
 
     def shutdown(self):
         ''' Turn off output and end communications '''
         self.setOutput(False)
-        self.endComm()
+        self.end_comm()
         
-    def endComm(self):
+    def end_comm(self):
         self.device.close()
 
-    def getFunc(self):
-        s = self.device.udpSendRecv(':FUNC?')
+    def get_func(self):
+        s = self.device.send_receive(':FUNC?')
         return s.strip('\n')
 
-    def setFunc(self, func_type):
+    def set_func(self, func_type):
         ''' func options: 
         CC = Constant Current
         CV = Constant Voltage
         CR = Constant Resistance
         CW = Constant Wattage
         SHORt = ???'''
-        self.device.udpSend(':FUNC {}'.format(func_type))
+        self.device.send(':FUNC {}'.format(func_type))
         if self.getFunc() != func_type:
             raise ValueError('Caution: {} not set properly'.format('FUNC'))
 
-    def setConstantCurrent(self):
-        self.setFunc('CC')
+    def set_constant_current(self):
+        self.set_func('CC')
 
-    def setConstantPower(self):
-        self.setFunc('CW')
+    def set_constant_power(self):
+        self.set_func('CW')
         
-    def setConstantResistance(self):
-        self.setFunc('CR')
+    def set_constant_resistance(self):
+        self.set_func('CR')
 
 #### COMPLETED AND TESTED ABOVE THIS LINE
 
-    def getGenericFloat(self, settingName, units):
-        return float(self.device.udpSendRec(':{}?'.format(settingName)).strip('V\n')))
+    def get_generic_float(self, setting_name, units=''):
+        return float(self.device.udpSendRec(':{}?'.format(setting_name)).strip('{}\n'.format(units)))
 
-    def measureVoltage(self):
-        return self.getGenericFloat('MEAS:VOLT', 'V')
+    def measure_voltage(self):
+        return self.get_generic_float('MEAS:VOLT', 'V')
 
-    def measurePower(self):
-        return self.getGenericFloat('MEAS:POW', 'W')
+    def measure_power(self):
+        return self.get_generic_float('MEAS:POW', 'W')
 
-    def measureCurrent(self):
-        return self.getGenericFloat('MEAS:CUR', 'A')
+    def measure_current(self):
+        return self.get_generic_float('MEAS:CUR', 'A')
 
-    def measureAllParams(self):
-        return {"voltage": self.measureVoltage(), "current": self.measureCurrent(), "power": self.measurePower()}
+    def measure_all_params(self):
+        return {"voltage": self.measure_voltage(), "current": self.measure_current(), "power": self.measure_power()}
 
-    def setGenericFloat(self, settingName, value, units, precsision=3):
+    def set_generic_gloat(self, setting_name, value, units, precsision=3):
         # tod0: test 3 decimal places!
-        s = self.device.udpSend(':{0} {1:.{prec}f}{2}'.format(settingName, value, units, prec=precision))
-        if self.getGenericFloat(settingName, units) != value:
-            raise ValueError('{} set incorectly on the device'.format(settingName))
+        s = self.device.send(':{0} {1:.{prec}f}{2}'.format(setting_name, value, units, prec=precision))
+        if self.get_generic_float(setting_name, units) != value:
+            raise ValueError('{} set incorectly on the device'.format(setting_name))
         
 
-    def setCurrent(self, current):
-        self.setGenericFloat("CURR", current, "A")
+    def set_current(self, current):
+        self.set_generic_gloat("CURR", current, "A")
 
-    def getCurrentSetpoint(self):
-        raise NotImplementedError("getting setpoints not yet implemented")
-
+    def get_currentSetpoint(self):
+        return self.get_generic_float('CURR')
     
-    def setPower(self, power):
-        self.setGenericFloat("POW", power, "A")
+    def set_power(self, power):
+        self.set_generic_gloat("POW", power, "A")
 
-    def getPowerSetpoint(self):
-        raise NotImplementedError("getting setpoints not yet implemented")
+    def get_power_setpoint(self):
+        return self.get_generic_float('POW')
 
-    def setVoltage(self, voltage):
-        self.setGenericFloat("VOLT", voltage, "A")
+    def set_voltage(self, voltage):
+        self.set_generic_gloat("VOLT", voltage, "A")
 
-    def getVoltageSetpoint(self):
-        raise NotImplementedError("getting setpoints not yet implemented")
+    def get_voltage_setpoint(self):
+        return self.get_generic_float('VOLT')
 
-    def setCurrentMax(self, current):
+    def set_current_max(self, current):
         raise NotImplementedError("Setting max values not yet implemented")
 
-    def setVoltageMax(self, voltage):
+    def set_voltage_max(self, voltage):
         raise NotImplementedError("Setting max values not yet implemented")
         
-    def setPowerMax(self, Power):
+    def set_power_max(self, Power):
         raise NotImplementedError("Setting max values not yet implemented")
 
-    def setBatteryData(self, setting_id, max_current, set_current, voltage_cutoff, capacty_cutoff, time_cutoff):
+    def set_battery_data(self, setting_id, max_current, set_current, voltage_cutoff, capacty_cutoff, time_cutoff):
         # todo: check if settings are all proper??
-        self.device.udpSend(':BATT {0}, {1}A, {2}A, {3}V, {4}AH, {5}M'.format(setting_id, max_current, 
+        self.device.send(':BATT {0}, {1}A, {2}A, {3}V, {4}AH, {5}M'.format(setting_id, max_current, 
                                                                         set_current, voltage_cutoff, 
                                                                         capacity_cutoff, time_cutoff))
 
-        self.device.udpSend(':RCL:BATT {}'.format(setting_id))
+        self.device.send(':RCL:BATT {}'.format(setting_id))
         print(self.device.udpSendRec(':RCL:BATT?'))
         # todo: confirm settings worked with feedback!
 
-    def getBatteryTime(self):
-        return self.getGenericFloat('BAT:TIM?')
+    def get_battery_time(self):
+        return self.get_generic_float('BAT:TIM?', "M")
 
-    def getBatteryCapacity(self):
-        return self.getGenericFloat('BAT:CAP?')
+    def get_battery_capacity(self):
+        return self.get_generic_float('BAT:CAP?', "AH")
 
-    def setKeyboardLock(self, locked):
-        self.setGenericBoolean('SYST:LOCK', locked)
+    def set_keyboard_lock(self, locked):
+        self.set_generic_boolean('SYST:LOCK', locked)
 
 # to do:
 """
