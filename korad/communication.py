@@ -1,4 +1,7 @@
 import socket
+import time
+
+UDP_TIMEOUT_SECONDS = 10
 
 class KoradComm(object):
     def connect(self):
@@ -40,7 +43,7 @@ class KoradUdpComm(KoradComm):
             if len(data) > 0:
                 return data.decode('utf-8')
             
-            if time.time() - startTime > 3:
+            if time.time() - startTime > UDP_TIMEOUT_SECONDS:
                 print ("UDP timeout")
                 return " "
 

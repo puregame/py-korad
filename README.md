@@ -16,3 +16,7 @@ I will most likley pull this from one of the existing Korad Serial libraries.
 
 ## KD P Series Power Supplies
 Once I have compaired the SCPI command set between this device and the KA series hopefully we will just be able to unify these into a single class. 
+
+
+## Tests
+To run the tests open a terminal in the top-level folder. Run `python .\tests.py`.
