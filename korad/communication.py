@@ -1,7 +1,7 @@
 import socket
 import time
 
-UDP_TIMEOUT_SECONDS = 10
+UDP_TIMEOUT_SECONDS = 1
 
 class KoradComm(object):
     def connect(self):
@@ -17,7 +17,7 @@ class KoradComm(object):
         raise NotImplementedError()
 
 class KoradUdpComm(KoradComm):
-    def __init__(self, localAddress, deviceAddress, port):
+    def __init__(self, localAddress, deviceAddress, port=18190):
         self.clientAddress = (localAddress, port)
         self.deviceAddress = (deviceAddress, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -38,14 +38,10 @@ class KoradUdpComm(KoradComm):
         startTime = time.time()
         while 1:
             sent = self.sock.sendto(messageb , self.deviceAddress)
-            self.sock.settimeout(1.0) 
+            self.sock.settimeout(UDP_TIMEOUT_SECONDS) 
             data, server = self.sock.recvfrom(1024)
             if len(data) > 0:
                 return data.decode('utf-8')
-            
-            if time.time() - startTime > UDP_TIMEOUT_SECONDS:
-                print ("UDP timeout")
-                return " "
 
     def send(self, message):
         # build the message

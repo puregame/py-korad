@@ -1,15 +1,9 @@
-
-import re
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-
 from .communication import KoradUdpComm
 
 class Kel103(object):
 
-    def __init__(self, local_address, device_address, port):
-        self.device = KoradUdpComm(local_address, device_address, port)
+    def __init__(self, kel_comm):
+        self.device = kel_comm
         self.device.connect()
 
     def device_info(self):
@@ -77,8 +71,6 @@ class Kel103(object):
     def set_constant_resistance(self):
         self.set_func('CR')
 
-#### COMPLETED AND TESTED ABOVE THIS LINE
-
     def get_generic_float(self, setting_name, units=''):
         return float(self.device.send_receive(':{}?'.format(setting_name)).strip('{}\n'.format(units)))
 
@@ -145,8 +137,8 @@ class Kel103(object):
     def set_battery_data(self, data):
         # NOTE: KEL103 must have battery setting 2 applied first, then battery settings 0 and 1 get "unlocked" and can be used!
         # Note: see get_battery_data for formatting of incomming data dict
-        send = ':BATT {setting_id},{max_current}A,\
-                {set_current}A,{voltage_cutoff}V,{capacity_cutoff}AH,{time_cutoff}M'.format(**data)
+        send = ':BATT {setting_id},{max_current}A,{set_current}A,{voltage_cutoff}V,{capacity_cutoff}AH,{time_cutoff}M'.format(**data)
+        print(send)
         self.device.send(send)
 
         if self.get_battery_data(data['setting_id']) != data:

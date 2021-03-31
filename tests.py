@@ -5,14 +5,13 @@ import unittest
 class TestStringMethods(unittest.TestCase):
 
     def setUp(self):
-        # NOTE: change the 
-        self.kel = Kel103("10.11.6.3", "10.11.0.200", 18190)
-        # self.kel = Kel103("10.11.1.16", "10.11.0.200", 18190)
+        # NOTE: change the IP addresses here
+        self.comm = KoradUdpComm(set_your_ip_here, set_kel_ip_here)
+        self.kel = Kel103(comm)
 
     def test_device_info(self):
         s = self.kel.device_info()
         self.assertIn("KORAD-KEL103", s)
-        # check device info
 
     def test_func_mode(self):
         # set and check each func mode
@@ -93,6 +92,9 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(self.kel.get_keyboard_lock(), True)
         self.kel.set_keyboard_lock(False)
         self.assertEqual(self.kel.get_keyboard_lock(), False)
+
+    def test_battery_set(self):
+        raise NotImplementedError()
 
     def tearDown(self):
         self.kel.shutdown()
