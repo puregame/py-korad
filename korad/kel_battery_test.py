@@ -1,9 +1,11 @@
 from datetime import datetime
 import time
 import socket
-
+from asammdf import MDF, Signal
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+
 from .kel103 import Kel103
 
 class BatteryTestData(object):
@@ -11,7 +13,7 @@ class BatteryTestData(object):
         self.cell_id = cell_id
         self.start_time = start_time
         self.timestamps = []
-        self.data = []
+        self.data = {'v': [], 'c': [], 'p': [], 'cap':[], 't':[]}
 
         # for now data structure is:
         # test_timestamps - list of python times
@@ -20,10 +22,36 @@ class BatteryTestData(object):
 
     def new_sample(self, data, timestamp=datetime.now()):
         self.timestamps.append(timestamp)
-        self.data.append(data)
+        for i in data:
+            self.data[i].append(data[i])
 
     def export_to_mf4(self):
-        raise NotImplementedError()
+        print("exporting to mf4")
+        timestamps = np.array(self.data['t'])
+        voltages = Signal(samples=np.array(self.data['v'], dtype=np.float32),
+                 timestamps=timestamps,
+                 name='Voltage',
+                 unit='V')
+        currents = Signal(samples=np.array(self.data['c'], dtype=np.float32),
+                 timestamps=timestamps,
+                 name='Current',
+                 unit='A')
+        powers = Signal(samples=np.array(self.data['p'], dtype=np.float32),
+                 timestamps=timestamps,
+                 name='Power',
+                 unit='W')
+        capacities = Signal(samples=np.array(self.data['cap'], dtype=np.float32),
+                 timestamps=timestamps,
+                 name='Capacity',
+                 unit='AH')
+        print(np.array(self.data['v'], dtype=np.float32))
+        print(self.data['v'])
+
+        mdf4 = MDF(version='4.10')
+        signals = [voltages, currents, powers, capacities]
+        mdf4.append(signals, comment='Battery test: {}'.format(self.cell_id))
+        mdf4.save("test.mf4", overwrite=True)
+        return mdf4
 
 
 class KelBatteryDischargeTest(object):
@@ -31,6 +59,7 @@ class KelBatteryDischargeTest(object):
     def __init__(self, kel_device, measurement_period=1):
         self.kel = kel_device
         self.measurement_period = measurement_period
+        self.bat_test_data = {}
 
     def setup_for_test(self, cell_id, use_rear_voltage_measure, set_current, voltage_cutoff, capacity_cutoff=99, time_cutoff=99):
         self.test_data = BatteryTestData(cell_id)
@@ -104,7 +133,7 @@ class KelBatteryDischargeTest(object):
             raise e
 
     def export_results(self):
-        raise NotImplementedError()
-        # export test results and graphs to files
-
-        # ideally use MF4 file for graphing with asammdfgui!!
+        mdf4 = self.test_data.export_to_mf4()
+        file_name = '{}-cell-{}.mf4'.format(self.test_data.start_time.strftime('%Y-%m-%d'), self.test_data.cell_id)
+        print("exporting to filename: {}".format(file_name))
+        mdf4.save(file_name, overwrite=True)
