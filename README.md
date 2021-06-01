@@ -26,9 +26,9 @@ kel = Kel103(comm)
 kel.measure_voltage()
 ```
 
-for battery testing:
+For battery testing:
 ```
-from korad import Kel103, KoradUdpComm
+from korad import Kel103, KoradUdpComm, KelBatteryDischargeTest
 comm = KoradUdpComm(local_address, kel_address)
 kel = Kel103(comm)
 test = KelBatteryDischargeTest(kel)

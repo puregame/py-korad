@@ -44,11 +44,10 @@ class BatteryTestData(object):
                  timestamps=timestamps,
                  name='Capacity',
                  unit='AH')
-        print(np.array(self.data['v'], dtype=np.float32))
-        print(self.data['v'])
 
         mdf4 = MDF(version='4.10')
         signals = [voltages, currents, powers, capacities]
+        mdf4.start_time = self.start_time
         mdf4.append(signals, comment='Battery test: {}'.format(self.cell_id))
         mdf4.save("test.mf4", overwrite=True)
         return mdf4
@@ -60,9 +59,11 @@ class KelBatteryDischargeTest(object):
         self.kel = kel_device
         self.measurement_period = measurement_period
         self.bat_test_data = {}
+        self.test_data = None
 
     def setup_for_test(self, cell_id, use_rear_voltage_measure, set_current, voltage_cutoff, capacity_cutoff=99, time_cutoff=99):
-        self.test_data = BatteryTestData(cell_id)
+        if self.test_data == None:
+            self.test_data = BatteryTestData(cell_id)
         self.kel.check_device()
         self.bat_test_data = {
             'setting_id': 2,
